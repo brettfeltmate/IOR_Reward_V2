@@ -45,12 +45,6 @@ PASTEL_RED = [210, 75, 75, 255]
 class IOR_Reward_V2(klibs.Experiment):
 
 	def setup(self):
-		
-		# Bandit payout variables
-		self.high_payout_baseline = 12
-		self.low_payout_baseline = 8
-		self.total_score = None
-		self.penalty = -5
 
 		# Stimulus sizes
 		thick_rect_border = deg_to_px(0.5)
@@ -59,17 +53,6 @@ class IOR_Reward_V2(klibs.Experiment):
 		star_thickness = deg_to_px(0.1)
 		square_size = deg_to_px(3)
 		large_text_size = 0.65
-
-		# Generate bandit colours from colour wheel
- 		self.bandit_colour_combos = []
-		if P.blocks_per_experiment > 4:
-			msg = ("Only 4 sets of colours available, experiment script must be modified if more"
-				"than 4 blocks total are wanted.")
-			raise RuntimeError(msg)
-		for angle in [0, 45, 90, 135]:
-			combo = [const_lum[angle], const_lum[angle+180]]
-			self.bandit_colour_combos.append(combo)
-		random.shuffle(self.bandit_colour_combos)
 
 		# Stimulus drawbjects
 		self.thick_rect = Rectangle(square_size, stroke=[thick_rect_border, WHITE, STROKE_CENTER])
@@ -94,9 +77,40 @@ class IOR_Reward_V2(klibs.Experiment):
 		self.cotoa_max = 1000 # ms
 		self.feedback_exposure_period = 1.25 # sec
 
+		# Bandit payout variables
+		self.high_payout_baseline = 12
+		self.low_payout_baseline = 8
+		self.total_score = None
+		self.penalty = -5
+		
+		# Generate bandit colours from colour wheel
+ 		self.bandit_colour_combos = []
+		if P.blocks_per_experiment > 4:
+			msg = ("Only 4 sets of colours available, experiment script must be modified if more"
+				"than 4 blocks total are wanted.")
+			raise RuntimeError(msg)
+		for angle in [0, 45, 90, 135]:
+			combo = [const_lum[angle], const_lum[angle+180]]
+			self.bandit_colour_combos.append(combo)
+		random.shuffle(self.bandit_colour_combos)
+
 		# EyeLink Boundaries
 		fix_bounds = [P.screen_c, square_size/2]
 		self.el.add_boundary('fixation', fix_bounds, CIRCLE_BOUNDARY)
+
+		# Do we want to continue using audio responses?
+		# Do we want to monitor for wrong response types? To both targets?
+		# Do we want to calibrate audio listener before bandit blocks? Would this confuse subj's?
+		self.probe_rc = ResponseCollector(uses=[RC_AUDIO, RC_KEYPRESS])
+		self.bandit_rc = ResponseCollector(uses=[RC_AUDIO, RC_KEYPRESS])
+		
+		# Initialize ResponseCollector keymap
+		self.keymap = KeyMap(
+			'bandit_response', # Name
+			['z', '/'], # UI labels
+			["left", "right"], # Data labels
+			[sdl2.SDLK_z, sdl2.SDLK_SLASH] # SDL2 Keysyms
+		)
 
 		# Experiment Messages
 		self.txtm.add_style("score up", large_text_size, PASTEL_GREEN)
@@ -114,7 +128,7 @@ class IOR_Reward_V2(klibs.Experiment):
 		response_on_catch_txt = err_txt.format("No target presented!\nPlease wait until a target is "
 			"presented before making a response.")
 		
-		
+		# TODO: add messaging indicating block type
 		self.err_msgs = {
 			'fixation': message(lost_fixation_txt, align='center', blit_txt=False),
 			'too_soon': message(too_soon_txt, align='center', blit_txt=False),
@@ -123,18 +137,6 @@ class IOR_Reward_V2(klibs.Experiment):
 			'wrong_response': message(wrong_response_txt, align='center', blit_txt=False),
 			'response_on_catch': message(response_on_catch_txt, align='center', blit_txt=False)
 		}
-
-		# Did we still want to use audio responses?
-		self.probe_rc = ResponseCollector(uses=[RC_AUDIO, RC_KEYPRESS])
-		self.bandit_rc = ResponseCollector(uses=[RC_AUDIO, RC_KEYPRESS])
-		
-		# Initialize ResponseCollector keymap
-		self.keymap = KeyMap(
-			'bandit_response', # Name
-			['z', '/'], # UI labels
-			["left", "right"], # Data labels
-			[sdl2.SDLK_z, sdl2.SDLK_SLASH] # SDL2 Keysyms
-		)
 		
 		# Insert bandit block preceeding every probe block
 		if P.run_practice_blocks:
@@ -247,8 +249,9 @@ class IOR_Reward_V2(klibs.Experiment):
 		
 		# BANDIT BLOCK
 		if P.practicing:
-			cotoa, probe_rt = ['NA', 'NA']
+			cotoa, probe_rt = ['NA', 'NA'] # Don't occur in bandit blocks
 
+			# Present placeholders
 			while self.evm.before('target_on', True) and not self.err:
 				self.confirm_fixation()
 				self.present_neutral_boxes()
@@ -257,14 +260,17 @@ class IOR_Reward_V2(klibs.Experiment):
 			# BANDIT RESPONSE PERIOD
 			self.targets_shown = True # After bandits shown, don't recycle trial
 			
+			# Present bandits and listen for response
 			self.bandit_rc.collect()
-			if not P.ignore_vocal_for_bandits:
+			if not P.ignore_vocal_for_bandits: # If vocal response made (in error)
 				if len(self.bandit_rc.audio_listener.responses):
 					self.show_error_message('wrong_response')
 					self.err = 'vocal_on_bandit'
-
+			
+			# If wrong response made
 			if self.err:
 				bandit_choice, bandit_rt, reward = ['NA', 'NA', 'NA']
+			
 			else:
 				self.err = 'NA'
 				# Retrieve responses from ResponseCollector(s) & record data
@@ -280,20 +286,19 @@ class IOR_Reward_V2(klibs.Experiment):
 
 		# PROBE BLOCK
 		else:
-			bandit_choice, bandit_rt, reward = ['NA', 'NA', 'NA']
-			
-			#bandit_choice, bandit_rt, bandit_location, winning_bandit, reward = ['NA', 'NA', 'NA', 'NA', 'NA']
-			#high_value_location = 'NA'
+			bandit_choice, bandit_rt, reward = ['NA', 'NA', 'NA'] # Don't occur in probe trials
 
 			while self.evm.before('target_on', True):
 				self.confirm_fixation()
 				self.present_neutral_boxes()
 
+				# Present cue
 				if self.evm.between('cue_on', 'cue_off'):
 					if self.cue_location == LEFT:
 						blit(self.thick_rect, 5, self.left_box_loc)
 					else:
 						blit(self.thick_rect, 5, self.right_box_loc)
+				# Present cueback
 				elif self.evm.between('cue_off', 'cueback_off'):
 					blit(self.star_cueback, 5, P.screen_c)
 
@@ -301,25 +306,32 @@ class IOR_Reward_V2(klibs.Experiment):
 
 			# PROBE RESPONSE PERIOD
 			self.targets_shown = True # After probe shown, don't recycle trial
+			# Present probes & listen for response
 			self.probe_rc.collect()
 
+			# No target presented on catch trials
 			if self.probe_colour != CATCH:
+				# If wrong response type
 				if len(self.probe_rc.keypress_listener.responses):
 					self.show_error_message('wrong_response')
 					self.err = 'keypress_on_probe'
+				# If no response collected
 				elif len(self.probe_rc.audio_listener.responses) == 0:
 					self.show_error_message('probe_timeout')
+					# If mic craps out
 					if self.probe_rc.audio_listener.stream_error:
 						self.err = 'microphone_error'
+					# Otherwise, timeout
 					else:
 						self.err = 'probe_timeout'
+			# If response made on catch trial
 			else:
 				if len(self.probe_rc.keypress_listener.responses) or len(self.probe_rc.audio_listener.responses):
 					self.show_error_message('response_on_catch')
 					self.err = 'response_on_catch'
 			
 			if self.err:
-				probe_rt = 'NA'
+				probe_rt = 'NA'	
 			else:
 				self.err = 'NA'
 				# Retrieve responses from ResponseCollector & record data
@@ -357,21 +369,24 @@ class IOR_Reward_V2(klibs.Experiment):
 		pass
 
 	def feedback(self, response):
+		# Determine winning bandit
 		if self.winning_bandit == HIGH:
 			winning_bandit_loc = self.high_value_location
 		else:
 			winning_bandit_loc = self.low_value_location
-
+		# Determine payout
 		if response == winning_bandit_loc:
 			points = self.bandit_payout(value=self.winning_bandit)
 			msg = message("You won {0} points!".format(points), "score up", blit_txt=False)
 		else:
 			points = self.penalty # -5
 			msg = message("You lost 5 points!", "score down", blit_txt=False)
-
+		
+		# Running point total
 		self.total_score += points
 		feedback = [points, msg]
 
+		# Present payout
 		feedback_exposure = CountDown(self.feedback_exposure_period)
 		while feedback_exposure.counting():
 			ui_request()
@@ -381,6 +396,7 @@ class IOR_Reward_V2(klibs.Experiment):
 			
 		return feedback[0]
 
+	# Calculates bandit payout
 	def bandit_payout(self, value):
 		mean = self.high_payout_baseline if value == HIGH else self.low_payout_baseline
 		# sample from normal distribution with sd of 1 and round to nearest int
@@ -414,19 +430,21 @@ class IOR_Reward_V2(klibs.Experiment):
 		blit(self.neutral_box, 5, self.left_box_loc)
 		blit(self.neutral_box, 5, self.right_box_loc)
 			
+	# Presents bandits
 	def bandit_callback(self, before_go=False):
-		#fill()
-		#blit(self.star, 5, P.screen_c)
 		self.confirm_fixation()
 		self.present_neutral_boxes()
 
 		blit(self.left_bandit, 5, self.left_box_loc)
 		blit(self.right_bandit, 5, self.right_box_loc)
-		
+
+	# Presents probes	
 	def probe_callback(self):
 		self.confirm_fixation()
 		self.present_neutral_boxes()
 
 		probe_loc = self.right_box_loc if self.probe_location == RIGHT else self.left_box_loc
+
+		# Don't present on catch trials
 		if self.probe_colour != CATCH:
 			blit(self.probe, 5, probe_loc)
