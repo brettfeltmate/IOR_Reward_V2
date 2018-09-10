@@ -43,6 +43,8 @@ to be an integer.
 
 CREATE TABLE participants (
 	id integer primary key autoincrement not null,
+	random_seed text not null,
+	klibs_commit text not null,
 	userhash text not null,
 	gender text not null,
 	age integer not null, 
@@ -66,6 +68,7 @@ CREATE TABLE trials (
 	/* Probe columns */
 	cue_loc text not null,
 	cotoa text not null,
+	go_no_go text not null,
 	probe_loc text not null,
 	probe_col text not null,
 	probe_rt text not null,

@@ -83,5 +83,44 @@
             "active": true
         }
     ],
-    "experimental": null
+    "experimental": [
+        {
+            "title": "anticipated reward selecting high",
+            "database_field": "anticipated_reward_high",
+            "query": "If you won, how many points would you expect to earn this trial?",
+            "accepted": null,
+            "allow_null": false,
+            "format":{
+                "type": "int",
+                "styles": "default",
+                "positions": "default",
+                "password": false,
+                "range": [0,125],
+                "case_sensitive": null,
+                "accept_as_true": null,
+                "action": null
+            },
+            "anonymous_value": -1,
+            "active": true
+        },
+        {
+            "title": "anticipated reward selecting low",
+            "database_field": "anticipated_reward_low",
+            "query": "If you won, how many points would you expect to earn this trial?",
+            "accepted": null,
+            "allow_null": false,
+            "format":{
+                "type": "int",
+                "styles": "default",
+                "positions": "default",
+                "password": false,
+                "range": [0,125],
+                "case_sensitive": null,
+                "accept_as_true": null,
+                "action": null
+            },
+            "anonymous_value": -1,
+            "active": true
+        }
+    ]
 }

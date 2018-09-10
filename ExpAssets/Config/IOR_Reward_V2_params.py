@@ -23,7 +23,7 @@ default_fill_color = (45, 45, 45, 255)
 default_color = (255, 255, 255, 255)
 default_font_size = 0.5
 default_font_unit = 'deg'
-default_font_name = 'Hind-Medium'
+default_font_name = 'frutiger'
 
 #########################################
 # EyeLink Settings
@@ -39,7 +39,7 @@ saccadic_motion_threshold = 0.15
 # Experiment Structure
 #########################################
 multi_session_project = False
-trials_per_block = 16
+trials_per_block = 300
 blocks_per_experiment = 1
 table_defaults = {} 
 
@@ -62,4 +62,4 @@ append_info_cols = ["random_seed"]
 #########################################
 # PROJECT-SPECIFIC VARS
 #########################################
-ignore_vocal_for_bandits = False
+trials_bandit_block = 5
