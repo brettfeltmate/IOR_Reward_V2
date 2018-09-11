@@ -76,3 +76,10 @@ CREATE TABLE trials (
 	err text not null
 	
 );
+
+CREATE TABLE surveys (
+	id integer primary key autoincrement not null,
+	participant_id integer not null references participants(id),
+	anticipated_reward_high text not null,
+	anticipated_reward_low text not null
+);

@@ -14,7 +14,7 @@ from klibs.KLUserInterface import ui_request, any_key, key_pressed
 from klibs.KLGraphics import flip, blit, fill, clear
 from klibs.KLGraphics.colorspaces import const_lum
 from klibs.KLGraphics.KLDraw import Rectangle, Asterisk, Ellipse, FixationCross
-from klibs.KLCommunication import message
+from klibs.KLCommunication import message, user_queries, query
 from klibs.KLResponseCollectors import ResponseCollector
 from klibs.KLEventInterface import TrialEventTicket as ET
 
@@ -173,6 +173,9 @@ class IOR_Reward_V2(klibs.Experiment):
 			# Store remaining colours to be used as probe colours
 			self.probe_colours = [item for sublist in self.colour_combos for item in sublist]
 
+			self.times_selected_high = 0
+			self.time_selected_low = 0
+
 		# Calibrate microphone for audio responses
 		if not P.practicing:
 			self.probe_rc.audio_listener.threshold = self.audio.calibrate()
@@ -180,7 +183,7 @@ class IOR_Reward_V2(klibs.Experiment):
 	def setup_response_collector(self):
 				
 		# Configure probe response collector
-		self.probe_rc.terminate_after = [2000, TK_MS]
+		self.probe_rc.terminate_after = [1500, TK_MS]
 		self.probe_rc.display_callback = self.probe_callback
 		self.probe_rc.flip = True
 		self.probe_rc.keypress_listener.key_map = self.keymap
@@ -189,7 +192,7 @@ class IOR_Reward_V2(klibs.Experiment):
 		self.probe_rc.audio_listener.interrupts = True
 		
 		# Configure bandit response collector
-		self.bandit_rc.terminate_after = [2000, TK_MS]
+		self.bandit_rc.terminate_after = [1500, TK_MS]
 		self.bandit_rc.display_callback = self.bandit_callback
 		self.bandit_rc.flip = True
 		self.bandit_rc.keypress_listener.key_map = self.keymap
@@ -327,8 +330,6 @@ class IOR_Reward_V2(klibs.Experiment):
 				if len(self.probe_rc.keypress_listener.responses) or len(self.probe_rc.audio_listener.responses):
 					self.show_error_message('response_on_nogo')
 					self.err = 'response_on_nogo'
-				else:
-					print("no response collected")
 			
 			# If error in repsonse, don't record reaction time
 			if self.err:
@@ -376,8 +377,22 @@ class IOR_Reward_V2(klibs.Experiment):
 			winning_bandit_loc = self.high_value_location
 		else:
 			winning_bandit_loc = self.low_value_location
+
+		# Keep count of bandit choices
+		if response == self.high_value_location:
+			self.times_selected_high = self.times_selected_high + 1
+			# Occasionally probe participant learning
+			if self.times_selected_high in [5,10,15]:
+				self.query_learning(HIGH)
+
+		else:
+			self.time_selected_low = self.time_selected_low + 1
+			if self.time_selected_low in [5,10,15]:
+				self.query_learning(LOW)
+		
 		# Determine payout
 		if response == winning_bandit_loc:
+
 			points = self.bandit_payout(value=self.winning_bandit)
 			msg = message("You won {0} points!".format(points), "score up", blit_txt=False)
 		else:
@@ -454,3 +469,21 @@ class IOR_Reward_V2(klibs.Experiment):
 		else:
 			blit(self.probe, 5, self.probe_loc)
 			blit(self.nogo, 5, self.probe_loc)
+
+	def query_learning(self, bandit):
+		if bandit == HIGH:
+			anticipated_reward_high = query(user_queries.experimental[0])
+			anticipated_reward_survey = {
+				'participant_id': P.participant_id,
+				'anticipated_reward_high': anticipated_reward_high,
+				'anticipated_reward_low': "NA"
+			}
+		else:
+			anticipated_reward_low = query(user_queries.experimental[1])
+			anticipated_reward_survey = {
+				'participant_id': P.participant_id,
+				'anticipated_reward_high': "NA",
+				'anticipated_reward_low': anticipated_reward_low
+			}
+
+		self.db.insert(anticipated_reward_survey, table='surveys')

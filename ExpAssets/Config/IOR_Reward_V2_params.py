@@ -3,7 +3,7 @@
 #########################################
 # Runtime Settings
 #########################################
-collect_demographics = False
+collect_demographics = True
 manual_demographics_collection = False
 manual_trial_generation = False
 run_practice_blocks = True
@@ -62,4 +62,4 @@ append_info_cols = ["random_seed"]
 #########################################
 # PROJECT-SPECIFIC VARS
 #########################################
-trials_bandit_block = 5
+trials_bandit_block = 50

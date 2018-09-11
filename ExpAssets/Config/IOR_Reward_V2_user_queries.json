@@ -70,7 +70,7 @@
             "accepted": null,
             "allow_null": false,
             "format": {
-                "type": "int",
+                "type": "str",
                 "styles": "default",
                 "positions": "default",
                 "password": false,
@@ -85,41 +85,43 @@
     ],
     "experimental": [
         {
-            "title": "anticipated reward selecting high",
+            "index": 0,
+            "title": "anticipated_reward_high",
             "database_field": "anticipated_reward_high",
             "query": "If you won, how many points would you expect to earn this trial?",
             "accepted": null,
             "allow_null": false,
             "format":{
-                "type": "int",
+                "type": "str",
                 "styles": "default",
                 "positions": "default",
                 "password": false,
-                "range": [0,125],
-                "case_sensitive": null,
+                "range": null,
+                "case_sensitive": false,
                 "accept_as_true": null,
                 "action": null
             },
-            "anonymous_value": -1,
+            "anonymous_value": "NA",
             "active": true
         },
         {
-            "title": "anticipated reward selecting low",
+            "index": 1,
+            "title": "anticipated_reward_low",
             "database_field": "anticipated_reward_low",
             "query": "If you won, how many points would you expect to earn this trial?",
             "accepted": null,
             "allow_null": false,
             "format":{
-                "type": "int",
+                "type": "str",
                 "styles": "default",
                 "positions": "default",
                 "password": false,
-                "range": [0,125],
-                "case_sensitive": null,
+                "range": null,
+                "case_sensitive": false,
                 "accept_as_true": null,
                 "action": null
             },
-            "anonymous_value": -1,
+            "anonymous_value": "NA",
             "active": true
         }
     ]
