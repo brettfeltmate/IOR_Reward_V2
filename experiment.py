@@ -79,10 +79,10 @@ class IOR_Reward_V2(klibs.Experiment):
 		self.left_box_loc = (P.screen_c[0] - box_offset, P.screen_c[1])
 		self.right_box_loc = (P.screen_c[0] + box_offset, P.screen_c[1])
 
-		# Timing
+		# Set cotoa
 		# cotoa = cue-offset target-onset asynchrony
-		self.cotoa_min = 700 # ms
-		self.cotoa_max = 1000 # ms
+		self.cotoa = 600 # ms
+
 		self.feedback_exposure_period = 1.25 # sec
 
 		# Bandit payout variables
@@ -137,6 +137,8 @@ class IOR_Reward_V2(klibs.Experiment):
 			'wrong_response': message(wrong_response_txt, align='center', blit_txt=False),
 			'response_on_nogo': message(response_on_nogo_txt, align='center', blit_txt=False)
 		}
+
+		self.rest_break_txt = err_txt.format("Whew! What a day, go ahead and take a break!")
 		
 		# Insert bandit block preceeding every probe block
 		if P.run_practice_blocks:
@@ -168,8 +170,8 @@ class IOR_Reward_V2(klibs.Experiment):
 			bandit_colours = self.colour_combos.pop()
 			random.shuffle(bandit_colours)
 			# Assign to high/low bandit
-			self.high_value_color = bandit_colours[0]
-			self.low_value_color = bandit_colours[1]
+			self.high_value_colour = bandit_colours[0]
+			self.low_value_colour = bandit_colours[1]
 			# Store remaining colours to be used as probe colours
 			self.probe_colours = [item for sublist in self.colour_combos for item in sublist]
 
@@ -208,20 +210,27 @@ class IOR_Reward_V2(klibs.Experiment):
 			self.cotoa = 'NA'
 			# Establish location & colour of bandits
 			if self.high_value_location == LEFT:
-				self.left_bandit.fill = self.high_value_color
-				self.right_bandit.fill = self.low_value_color
+				self.left_bandit.fill = self.high_value_colour
+				self.right_bandit.fill = self.low_value_colour
 				self.low_value_location = RIGHT
 			else:
-				self.left_bandit.fill = self.low_value_color
-				self.right_bandit.fill = self.high_value_color
+				self.left_bandit.fill = self.low_value_colour
+				self.right_bandit.fill = self.high_value_colour
 				self.low_value_location = LEFT
 			self.left_bandit.render()
 			self.right_bandit.render()
 		
 		# PROBE BLOCK
 		else:
-			# Randomly choose COTOA on each trial
-			self.cotoa = self.random_interval(self.cotoa_min, self.cotoa_max)
+			# Rest breaks
+			if P.trial_number % (P.trials_per_block/P.breaks_per_block) == 0:
+				if P.trial_number < P.trials_per_block:
+					fill()
+					msg = message(self.rest_break_txt, 'timeout', blit_txt=False)
+					blit(msg, 5, P.screen_c)
+					flip()
+					any_key()
+					self.probe_rc.audio_listener.threshold = self.audio.calibrate()
 
 			# Establish probe location
 			self.probe_loc = self.right_box_loc if self.probe_location == RIGHT else self.left_box_loc
@@ -229,9 +238,9 @@ class IOR_Reward_V2(klibs.Experiment):
 
 			# Establish probe colour
 			if self.probe_colour == HIGH:
-				self.probe.fill = self.high_value_color
+				self.probe.fill = self.high_value_colour
 			elif self.probe_colour == LOW:
-				self.probe.fill = self.low_value_color
+				self.probe.fill = self.low_value_colour
 			else:
 				# Randomly select 'neutral' (no value association) colour
 				self.probe.fill = random.choice(self.probe_colours)
@@ -244,8 +253,9 @@ class IOR_Reward_V2(klibs.Experiment):
 			events = [[1000, 'cue_on']]
 			events.append([events[-1][0] + 200, 'cue_off'])
 			events.append([events[-1][0] + 200, 'cueback_off'])
-			events.append([events[-2][0] + self.cotoa, 'target_on'])
+			events.append([events[-2][0] + int(self.cotoa), 'target_on'])
 		for e in events:
+			print(e)
 			self.evm.register_ticket(ET(e[1], e[0]))
 
 		# Perform drift correct on Eyelink before trial start
@@ -346,8 +356,8 @@ class IOR_Reward_V2(klibs.Experiment):
 			"block_num": P.block_number,
 			"trial_num": P.trial_number,
 			"block_type": self.block_type,
-			"high_value_col": self.high_value_color[:3] if self.block_type == BANDIT else 'NA',
-			"low_value_col": self.low_value_color[:3] if self.block_type == BANDIT else 'NA',
+			"high_value_col": self.high_value_colour[:3] if self.block_type == BANDIT else 'NA',
+			"low_value_col": self.low_value_colour[:3] if self.block_type == BANDIT else 'NA',
 			"winning_bandit": self.winning_bandit if self.block_type == BANDIT else 'NA',
 			"bandit_choice": bandit_choice,
 			"bandit_rt": bandit_rt,
@@ -369,7 +379,12 @@ class IOR_Reward_V2(klibs.Experiment):
 
 
 	def clean_up(self):
-		pass
+		self.all_done_text = "You're all done! Now I get to take a break.\nPlease buzz the researcher to let them know you're done!"
+		fill()
+		msg = message(self.all_done_text, 'timeout', blit_txt=False)
+		blit(msg, 5, P.screen_c)
+		flip()
+		any_key()
 
 	def feedback(self, response):
 		# Determine winning bandit

@@ -62,4 +62,5 @@ append_info_cols = ["random_seed"]
 #########################################
 # PROJECT-SPECIFIC VARS
 #########################################
-trials_bandit_block = 50
+trials_bandit_block = 1
+breaks_per_block = 5
