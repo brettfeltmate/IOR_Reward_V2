@@ -80,8 +80,7 @@ class IOR_Reward_V2(klibs.Experiment):
 		self.right_box_loc = (P.screen_c[0] + box_offset, P.screen_c[1])
 
 		# Set cotoa
-		# cotoa = cue-offset target-onset asynchrony
-		self.cotoa = 600 # ms
+		self.cotoa = 800 # ms
 
 		self.feedback_exposure_period = 1.25 # sec
 
@@ -102,18 +101,22 @@ class IOR_Reward_V2(klibs.Experiment):
 		fix_bounds = [P.screen_c, square_size/2]
 		self.el.add_boundary('fixation', fix_bounds, CIRCLE_BOUNDARY)
 
-		# Do we want to continue using audio responses?
-		# Do we want to monitor for wrong response types? To both targets?
-		# Do we want to calibrate audio listener before bandit blocks? Would this confuse subj's?
-		self.probe_rc = ResponseCollector(uses=[RC_AUDIO, RC_KEYPRESS])
-		self.bandit_rc = ResponseCollector(uses=[RC_KEYPRESS])
+		# Initialize response collectors
+		self.probe_rc = ResponseCollector(uses=RC_KEYPRESS)
+		self.bandit_rc = ResponseCollector(uses=RC_KEYPRESS)
 		
-		# Initialize ResponseCollector keymap
-		self.keymap = KeyMap(
+		# Initialize ResponseCollector keymaps
+		self.bandit_keymap = KeyMap(
 			'bandit_response', # Name
 			['z', '/'], # UI labels
 			["left", "right"], # Data labels
 			[sdl2.SDLK_z, sdl2.SDLK_SLASH] # SDL2 Keysyms
+		)
+		self.probe_keymap = KeyMap(
+			'probe_response',
+			['spacebar'],
+			["pressed"],
+			[sdl2.SDLK_SPACE]
 		)
 
 		# Experiment Messages
@@ -123,10 +126,8 @@ class IOR_Reward_V2(klibs.Experiment):
 
 		err_txt = "{0}\n\nPress any key to continue."
 		lost_fixation_txt = err_txt.format("Eyes moved! Please keep your eyes on the asterisk.")
-		probe_timeout_txt = err_txt.format("No response detected! Please answer louder or faster.")
+		probe_timeout_txt = err_txt.format("No response detected! Please respond as fast and as accurately as possible.")
 		bandit_timeout_txt = err_txt.format("Bandit selection timed out!")
-		wrong_response_txt = err_txt.format("Wrong response type!\nPlease make vocal responses "
-			"to probes and keypress responses to bandits.")
 		response_on_nogo_txt = err_txt.format("\'nogo\' signal (x) presented\nPlease only respond when you see "
 			"the \'go\' signal (+).")
 		
@@ -134,13 +135,13 @@ class IOR_Reward_V2(klibs.Experiment):
 			'fixation': message(lost_fixation_txt, align='center', blit_txt=False),
 			'probe_timeout': message(probe_timeout_txt, 'timeout', align='center', blit_txt=False),
 			'bandit_timeout': message(bandit_timeout_txt, 'timeout', align='center', blit_txt=False),
-			'wrong_response': message(wrong_response_txt, align='center', blit_txt=False),
 			'response_on_nogo': message(response_on_nogo_txt, align='center', blit_txt=False)
 		}
 
-		self.rest_break_txt = err_txt.format("Whew! What a day, go ahead and take a break!")
+		self.rest_break_txt = err_txt.format("Whew! that was tricky eh? Go ahead and take a break before continuing.")
+		self.end_of_block_txt = "You're done the first task! Please buzz the researcher to let them know!"
 		
-		# Insert bandit block preceeding every probe block
+		# Insert bandit block
 		if P.run_practice_blocks:
 			self.insert_practice_block(1, trial_counts=P.trials_bandit_block)
 	
@@ -149,8 +150,10 @@ class IOR_Reward_V2(klibs.Experiment):
 		# Block type defaults to probe trials, overidden in practice block(s)
 		self.block_type = PROBE
 
-		# At end of 'practice' block, show Ss their total score
+		# Show total score following completion of bandit task
 		if self.total_score:
+			self.total_score = 0 # Reset score once presented
+
 			fill()
 			score_txt = "Total block score: {0} points!".format(self.total_score)
 			msg = message(score_txt, 'timeout', blit_txt=False)
@@ -158,12 +161,7 @@ class IOR_Reward_V2(klibs.Experiment):
 			flip()
 			any_key()
 		
-		# So that scores aren't presented after bandit block is completed
-		# Yes, I know, there's a better way; but this works and I'm lazy
-		self.total_score = 0
-
-		# Note: Ss only experience one 'practice' block, wherein they perform a 2-armed bandit task
-		# intended to induce value associations to the bandit colours 
+		# Establish block variables
 		if P.practicing:
 			self.block_type == BANDIT
 			# Randomly select bandit colours from list generated at setup
@@ -178,9 +176,13 @@ class IOR_Reward_V2(klibs.Experiment):
 			self.times_selected_high = 0
 			self.time_selected_low = 0
 
-		# Calibrate microphone for audio responses
+		# End of block messaging
 		if not P.practicing:
-			self.probe_rc.audio_listener.threshold = self.audio.calibrate()
+			fill()
+			msg = message(self.end_of_block_txt,blit_txt=False)
+			blit(msg, 5, P.screen_c)
+			flip()
+			any_key()
 
 	def setup_response_collector(self):
 				
@@ -188,16 +190,14 @@ class IOR_Reward_V2(klibs.Experiment):
 		self.probe_rc.terminate_after = [1500, TK_MS]
 		self.probe_rc.display_callback = self.probe_callback
 		self.probe_rc.flip = True
-		self.probe_rc.keypress_listener.key_map = self.keymap
-		# Listen for errant keypress responses to probes
+		self.probe_rc.keypress_listener.key_map = self.probe_keymap
 		self.probe_rc.keypress_listener.interrupts = True
-		self.probe_rc.audio_listener.interrupts = True
 		
 		# Configure bandit response collector
 		self.bandit_rc.terminate_after = [1500, TK_MS]
 		self.bandit_rc.display_callback = self.bandit_callback
 		self.bandit_rc.flip = True
-		self.bandit_rc.keypress_listener.key_map = self.keymap
+		self.bandit_rc.keypress_listener.key_map = self.bandit_keymap
 		self.bandit_rc.keypress_listener.interrupts = True
 
 	def trial_prep(self):
@@ -220,7 +220,7 @@ class IOR_Reward_V2(klibs.Experiment):
 			self.left_bandit.render()
 			self.right_bandit.render()
 		
-		# PROBE BLOCK
+		# PROBE PROPERTIES
 		else:
 			# Rest breaks
 			if P.trial_number % (P.trials_per_block/P.breaks_per_block) == 0:
@@ -230,32 +230,31 @@ class IOR_Reward_V2(klibs.Experiment):
 					blit(msg, 5, P.screen_c)
 					flip()
 					any_key()
-					self.probe_rc.audio_listener.threshold = self.audio.calibrate()
 
-			# Establish probe location
+			# Establish & assign probe location
 			self.probe_loc = self.right_box_loc if self.probe_location == RIGHT else self.left_box_loc
+			# go/nogo signal always presented w/probe
 			self.go_nogo_loc = self.probe_loc	
 
-			# Establish probe colour
+			# Establish & assign probe colour
 			if self.probe_colour == HIGH:
 				self.probe.fill = self.high_value_colour
 			elif self.probe_colour == LOW:
 				self.probe.fill = self.low_value_colour
 			else:
-				# Randomly select 'neutral' (no value association) colour
+				# Randomly select 'neutral' neutral colour from unused bandit colours
 				self.probe.fill = random.choice(self.probe_colours)
 			self.probe.render()
 
 		# Add timecourse of events to EventManager
-		if P.practicing:
+		if P.practicing: # Bandit trials
 			events = [[1000, 'target_on']]
-		else:
+		else: # Probe trials
 			events = [[1000, 'cue_on']]
 			events.append([events[-1][0] + 200, 'cue_off'])
 			events.append([events[-1][0] + 200, 'cueback_off'])
-			events.append([events[-2][0] + int(self.cotoa), 'target_on'])
+			events.append([events[-2][0] + 800, 'target_on'])
 		for e in events:
-			print(e)
 			self.evm.register_ticket(ET(e[1], e[0]))
 
 		# Perform drift correct on Eyelink before trial start
@@ -263,14 +262,14 @@ class IOR_Reward_V2(klibs.Experiment):
 
 	def trial(self):
 		
-		# BANDIT BLOCK
+		# BANDIT TRIAL
 		if P.practicing:
 			cotoa, probe_rt = ['NA', 'NA'] # Don't occur in bandit blocks
 
 			# Present placeholders
 			while self.evm.before('target_on', True) and not self.err:
 				self.confirm_fixation()
-				self.present_neutral_boxes()
+				self.present_neutral_boxes() 
 				flip()
 
 			# BANDIT RESPONSE PERIOD
@@ -295,10 +294,11 @@ class IOR_Reward_V2(klibs.Experiment):
 					# Determine bandit payout & display
 					reward = self.feedback(bandit_choice)
 
-		# PROBE BLOCK
+		# PROBE TRIAL
 		else:
 			bandit_choice, bandit_rt, reward = ['NA', 'NA', 'NA'] # Don't occur in probe trials
 
+			# Present placeholders & confirm fixation
 			while self.evm.before('target_on', True):
 				self.confirm_fixation()
 				self.present_neutral_boxes()
@@ -322,36 +322,27 @@ class IOR_Reward_V2(klibs.Experiment):
 
 			# If 'go' trial, check for response
 			if self.go_no_go == GO:
-				# If wrong response type
-				if len(self.probe_rc.keypress_listener.responses):
-					self.show_error_message('wrong_response')
-					self.err = 'keypress_on_probe'
-				# If no response collected
-				elif len(self.probe_rc.audio_listener.responses) == 0:
-					self.show_error_message('probe_timeout')
-					# If mic craps out
-					if self.probe_rc.audio_listener.stream_error:
-						self.err = 'microphone_error'
-					# Otherwise, timeout
-					else:
-						self.err = 'probe_timeout'
-			# If response made on 'nogo' trial
+				# If wrong response made
+				if self.err:
+					probe_rt = 'NA'
+				# If correct response OR timeout
+				else:
+					self.err = 'NA'
+					probe_rt = self.probe_rc.keypress_listener.response(value=False,rt=True)
+					if probe_rt == TIMEOUT:
+						self.show_error_message('probe_timeout')
+						probe_rt = 'NA'
+			# Similarly, for 'nogo' trials
 			else:
-				if len(self.probe_rc.keypress_listener.responses) or len(self.probe_rc.audio_listener.responses):
+				probe_rt = 'NA'
+				# If response made, penalize
+				if len(self.probe_rc.keypress_listener.responses):
 					self.show_error_message('response_on_nogo')
 					self.err = 'response_on_nogo'
-			
-			# If error in repsonse, don't record reaction time
-			if self.err:
-				probe_rt = 'NA'	
-			else:
-				self.err = 'NA'
-				# Retrieve responses from ResponseCollector & record data
-				probe_rt = self.probe_rc.audio_listener.response(value=False, rt=True)
-
-		# Clear remaining stimuli from screen before trial end
-		clear()
-
+				# If no response, continue as normal
+				else:
+					self.err = 'NA'
+		# Return trial data
 		return {
 			"block_num": P.block_number,
 			"trial_num": P.trial_number,
@@ -370,15 +361,17 @@ class IOR_Reward_V2(klibs.Experiment):
 			"probe_rt": probe_rt,
 			"err": self.err
 		}
+		# Clear remaining stimuli from screen
+		clear()
 
 	def trial_clean_up(self):
 		# Clear responses from responses collectors before next trial
-		self.probe_rc.audio_listener.reset()
 		self.probe_rc.keypress_listener.reset()
 		self.bandit_rc.keypress_listener.reset()
 
 
 	def clean_up(self):
+		# Let Ss know when experiment is over
 		self.all_done_text = "You're all done! Now I get to take a break.\nPlease buzz the researcher to let them know you're done!"
 		fill()
 		msg = message(self.all_done_text, 'timeout', blit_txt=False)
@@ -386,6 +379,7 @@ class IOR_Reward_V2(klibs.Experiment):
 		flip()
 		any_key()
 
+	# Determines & presents feedback
 	def feedback(self, response):
 		# Determine winning bandit
 		if self.winning_bandit == HIGH:
@@ -407,7 +401,6 @@ class IOR_Reward_V2(klibs.Experiment):
 		
 		# Determine payout
 		if response == winning_bandit_loc:
-
 			points = self.bandit_payout(value=self.winning_bandit)
 			msg = message("You won {0} points!".format(points), "score up", blit_txt=False)
 		else:
@@ -433,7 +426,8 @@ class IOR_Reward_V2(klibs.Experiment):
 		mean = self.high_payout_baseline if value == HIGH else self.low_payout_baseline
 		# sample from normal distribution with sd of 1 and round to nearest int
 		return int(random.gauss(mean, 1) + 0.5)
-
+	
+	# Confirms whether Ss are fixating
 	def confirm_fixation(self):
 		if not self.el.within_boundary('fixation', EL_GAZE_POS):
 			self.show_error_message('fixation')
@@ -441,7 +435,8 @@ class IOR_Reward_V2(klibs.Experiment):
 				self.err = 'left_fixation'
 			else:
 				raise TrialException('gaze left fixation') # recycle trial
-
+	
+	# Presents error messages
 	def show_error_message(self, msg_key):
 		fill()
 		blit(self.err_msgs[msg_key], location=P.screen_c, registration=5)
@@ -455,7 +450,7 @@ class IOR_Reward_V2(klibs.Experiment):
 		max_flips = int(round(upper/P.refresh_time))
 		return random.choice(range(min_flips, max_flips+1, 1)) * P.refresh_time
 
-
+	# Presents neutral boxes, duh
 	def present_neutral_boxes(self):
 		fill()
 		blit(self.star, 5, P.screen_c)
@@ -475,8 +470,6 @@ class IOR_Reward_V2(klibs.Experiment):
 		self.confirm_fixation()
 		self.present_neutral_boxes()
 
-		#probe_loc = self.right_box_loc if self.probe_location == RIGHT else self.left_box_loc
-
 		# Present probe & go/nogo stimulus
 		if self.go_no_go == GO:
 			blit(self.probe, 5, self.probe_loc)
@@ -485,6 +478,7 @@ class IOR_Reward_V2(klibs.Experiment):
 			blit(self.probe, 5, self.probe_loc)
 			blit(self.nogo, 5, self.probe_loc)
 
+	# Assesses learning by asking Ss their anticipated trial earnings
 	def query_learning(self, bandit):
 		if bandit == HIGH:
 			anticipated_reward_high = query(user_queries.experimental[0])

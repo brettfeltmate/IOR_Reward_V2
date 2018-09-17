@@ -39,7 +39,7 @@ saccadic_motion_threshold = 0.15
 # Experiment Structure
 #########################################
 multi_session_project = False
-trials_per_block = 300
+trials_per_block = 30
 blocks_per_experiment = 1
 table_defaults = {} 
 
@@ -62,5 +62,5 @@ append_info_cols = ["random_seed"]
 #########################################
 # PROJECT-SPECIFIC VARS
 #########################################
-trials_bandit_block = 1
+trials_bandit_block = 5
 breaks_per_block = 5
