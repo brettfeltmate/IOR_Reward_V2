@@ -178,6 +178,7 @@ class IOR_Reward_V2(klibs.Experiment):
 
 		# End of block messaging
 		if not P.practicing:
+			self.block_type == PROBE
 			fill()
 			msg = message(self.end_of_block_txt,blit_txt=False)
 			blit(msg, 5, P.screen_c)
