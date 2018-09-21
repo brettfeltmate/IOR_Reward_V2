@@ -43,8 +43,7 @@ BLUE = [0, 0, 255, 255]
 RED = [255, 0, 0, 255]
 GREEN = [0, 255, 0, 255]
 PURPLE = [95, 25, 130, 255]
-PASTEL_GREEN = [75, 210, 100, 255]
-PASTEL_RED = [210, 75, 75, 255]
+
 
 class IOR_Reward_V2(klibs.Experiment):
 
@@ -124,8 +123,7 @@ class IOR_Reward_V2(klibs.Experiment):
 		)
 
 		# Experiment Messages
-		self.txtm.add_style("score up", large_text_size, PASTEL_GREEN)
-		self.txtm.add_style("score down", large_text_size, PASTEL_RED)
+		self.txtm.add_style("payout", large_text_size, WHITE)
 		self.txtm.add_style("timeout", large_text_size, WHITE)
 
 		err_txt = "{0}\n\nPress any key to continue."
@@ -353,7 +351,7 @@ class IOR_Reward_V2(klibs.Experiment):
 			"bandit_rt": bandit_rt,
 			"reward": reward,
 			"cue_loc": self.cue_location if not P.practicing else 'NA',
-			"cotoa": 1000 if not P.practicing else 'NA',
+			"cotoa": self.cotoa if not P.practicing else 'NA',
 			"probe_loc": self.probe_location if not P.practicing else 'NA',
 			"probe_col": self.probe_colour if not P.practicing else 'NA',
 			"go_no_go": self.go_no_go if not P.practicing else 'NA',
@@ -398,10 +396,10 @@ class IOR_Reward_V2(klibs.Experiment):
 		# Determine payout
 		if self.winning_trial == YES:
 			points = self.bandit_payout(value=self.bandit_selected)
-			msg = message("You won {0} points!".format(points), "score up", blit_txt=False)
+			msg = message("You won {0} points!".format(points), "payout", blit_txt=False)
 		else:
 			points = self.penalty # -5
-			msg = message("You lost 5 points!", "score down", blit_txt=False)
+			msg = message("You lost 5 points!", "payout", blit_txt=False)
 		
 		# Running point total
 		self.total_score += points
