@@ -32,6 +32,8 @@ LOW = "low"
 NEUTRAL = "neutral"
 GO = "go"
 NOGO = "nogo"
+YES = "yes"
+NO = "no"
 
 # Define colours for the experiment
 WHITE = [255, 255, 255, 255]
@@ -91,11 +93,13 @@ class IOR_Reward_V2(klibs.Experiment):
 		self.penalty = -5
 		
 		# Generate colours from colour wheel
- 		self.colour_combos = []
-		for angle in [0, 45, 90, 135]:
-			combo = [const_lum[angle], const_lum[angle+180]]
-			self.colour_combos.append(combo)
-		random.shuffle(self.colour_combos)
+		self.target_colours = [const_lum[0], const_lum[120], const_lum[240]]
+		random.shuffle(self.target_colours)
+
+		# Assign to bandits & neutral probe
+		self.high_value_colour = self.target_colours[0]
+		self.low_value_colour = self.target_colours[1]
+		self.neutral_value_colour = self.target_colours[2]
 
 		# EyeLink Boundaries
 		fix_bounds = [P.screen_c, square_size/2]
@@ -152,27 +156,19 @@ class IOR_Reward_V2(klibs.Experiment):
 
 		# Show total score following completion of bandit task
 		if self.total_score:
-			self.total_score = 0 # Reset score once presented
-
 			fill()
 			score_txt = "Total block score: {0} points!".format(self.total_score)
 			msg = message(score_txt, 'timeout', blit_txt=False)
 			blit(msg, 5, P.screen_c)
 			flip()
 			any_key()
+
+		self.total_score = 0 # Reset score once presented
 		
-		# Establish block variables
+		# Bandit task
 		if P.practicing:
 			self.block_type == BANDIT
-			# Randomly select bandit colours from list generated at setup
-			bandit_colours = self.colour_combos.pop()
-			random.shuffle(bandit_colours)
-			# Assign to high/low bandit
-			self.high_value_colour = bandit_colours[0]
-			self.low_value_colour = bandit_colours[1]
-			# Store remaining colours to be used as probe colours
-			self.probe_colours = [item for sublist in self.colour_combos for item in sublist]
-
+			# Initialize selection counters
 			self.times_selected_high = 0
 			self.time_selected_low = 0
 
@@ -210,6 +206,7 @@ class IOR_Reward_V2(klibs.Experiment):
 		if P.practicing:
 			self.cotoa = 'NA'
 			# Establish location & colour of bandits
+
 			if self.high_value_location == LEFT:
 				self.left_bandit.fill = self.high_value_colour
 				self.right_bandit.fill = self.low_value_colour
@@ -243,8 +240,7 @@ class IOR_Reward_V2(klibs.Experiment):
 			elif self.probe_colour == LOW:
 				self.probe.fill = self.low_value_colour
 			else:
-				# Randomly select 'neutral' neutral colour from unused bandit colours
-				self.probe.fill = random.choice(self.probe_colours)
+				self.probe.fill = self.neutral_value_colour
 			self.probe.render()
 
 		# Add timecourse of events to EventManager
@@ -347,18 +343,20 @@ class IOR_Reward_V2(klibs.Experiment):
 		return {
 			"block_num": P.block_number,
 			"trial_num": P.trial_number,
-			"block_type": self.block_type,
-			"high_value_col": self.high_value_colour[:3] if self.block_type == BANDIT else 'NA',
-			"low_value_col": self.low_value_colour[:3] if self.block_type == BANDIT else 'NA',
-			"winning_bandit": self.winning_bandit if self.block_type == BANDIT else 'NA',
-			"bandit_choice": bandit_choice,
+			"block_type": "BANDIT" if P.practicing else "PROBE",
+			"high_value_col": self.high_value_colour[:3] if P.practicing else 'NA',
+			"high_value_loc": self.high_value_location if P.practicing else 'NA',
+			"low_value_col": self.low_value_colour[:3] if P.practicing else 'NA',
+			"low_value_loc": self.low_value_location if P.practicing else 'NA',
+			"winning_trial": self.winning_trial if P.practicing else 'NA',
+			"bandit_selected": self.bandit_selected if P.practicing else 'NA',
 			"bandit_rt": bandit_rt,
 			"reward": reward,
-			"cue_loc": self.cue_location if self.block_type == PROBE else 'NA',
-			"cotoa": self.cotoa if self.block_type == PROBE else 'NA',
-			"probe_loc": self.probe_location if self.block_type == PROBE else 'NA',
-			"probe_col": self.probe_colour if self.block_type == PROBE else 'NA',
-			"go_no_go": self.go_no_go if self.block_type == PROBE else 'NA',
+			"cue_loc": self.cue_location if not P.practicing else 'NA',
+			"cotoa": 1000 if not P.practicing else 'NA',
+			"probe_loc": self.probe_location if not P.practicing else 'NA',
+			"probe_col": self.probe_colour if not P.practicing else 'NA',
+			"go_no_go": self.go_no_go if not P.practicing else 'NA',
 			"probe_rt": probe_rt,
 			"err": self.err
 		}
@@ -382,27 +380,24 @@ class IOR_Reward_V2(klibs.Experiment):
 
 	# Determines & presents feedback
 	def feedback(self, response):
-		# Determine winning bandit
-		if self.winning_bandit == HIGH:
-			winning_bandit_loc = self.high_value_location
-		else:
-			winning_bandit_loc = self.low_value_location
 
 		# Keep count of bandit choices
 		if response == self.high_value_location:
+			self.bandit_selected = HIGH
 			self.times_selected_high = self.times_selected_high + 1
 			# Occasionally probe participant learning
 			if self.times_selected_high in [5,10,15]:
 				self.query_learning(HIGH)
 
 		else:
+			self.bandit_selected = LOW
 			self.time_selected_low = self.time_selected_low + 1
 			if self.time_selected_low in [5,10,15]:
 				self.query_learning(LOW)
 		
 		# Determine payout
-		if response == winning_bandit_loc:
-			points = self.bandit_payout(value=self.winning_bandit)
+		if self.winning_trial == YES:
+			points = self.bandit_payout(value=self.bandit_selected)
 			msg = message("You won {0} points!".format(points), "score up", blit_txt=False)
 		else:
 			points = self.penalty # -5

@@ -60,10 +60,12 @@ CREATE TABLE trials (
 	trial_num integer not null,
 	/* Bandit columns */
 	high_value_col text not null,
+	high_value_loc text not null,
 	low_value_col text not null,
-	bandit_choice text not null,
+	low_value_loc text not null,
+	bandit_selected text not null,
 	bandit_rt text not null,
-	winning_bandit text not null,
+	winning_trial text not null,
 	reward text not null,
 	/* Probe columns */
 	cue_loc text not null,

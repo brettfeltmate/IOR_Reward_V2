@@ -57,7 +57,7 @@ dm_show_gaze_dot = True
 primary_table = "trials"
 unique_identifier = "userhash"
 exclude_data_cols = ["created"]
-append_info_cols = ["random_seed"]
+append_info_cols = []
 
 #########################################
 # PROJECT-SPECIFIC VARS
