@@ -64,7 +64,6 @@ class IOR_Reward_V2(klibs.Experiment):
 
 		self.star = Asterisk(star_size, star_thickness, fill=WHITE)
 		self.star_cueback = Asterisk(star_size*2, star_thickness*2, fill=WHITE)
-		self.star_muted = Asterisk(star_size, star_thickness, fill=GREY)
 
 		self.go = FixationCross(star_size, star_thickness, fill=BLACK)
 		self.go.render()
